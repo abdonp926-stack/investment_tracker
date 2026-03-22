@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Portfolio Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --bg-primary: #0a0e12;
+    --bg-secondary: #111518;
+    --bg-card: #161b22;
+    --bg-card-hover: #1c2129;
+    --bg-elevated: #1e242c;
+    --border: #21262d;
+    --border-light: #30363d;
+    --text-primary: #f0f6fc;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --green: #00c805;
+    --green-light: #2ee337;
+    --green-dim: rgba(0,200,5,0.12);
+    --green-glow: rgba(0,200,5,0.25);
+    --red: #ff5000;
+    --red-dim: rgba(255,80,0,0.12);
+    --yellow: #f0b429;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+    --cyan: #39d0d8;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 32px 60px;
+  }
+
+  /* ─── API KEY MODAL ─── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items:center; justify-content:center;
+    z-index: 1000;
+    backdrop-filter: blur(8px);
+  }
+  .modal-overlay.hidden { display:none; }
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 480px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  }
+  .modal-icon {
+    width: 56px; height: 56px;
+    background: var(--green-dim);
+    border-radius: 50%;
+    display: flex; align-items:center; justify-content:center;
+    margin: 0 auto 20px;
+    box-shadow: 0 0 30px var(--green-glow);
+  }
+  .modal-icon svg { width:28px; height:28px; }
+  .modal h2 { font-size:22px; font-weight:700; margin-bottom:8px; }
+  .modal p { font-size:14px; color:var(--text-secondary); margin-bottom:24px; line-height:1.5; }
+  .modal-input {
+    width: 100%;
+    padding: 14px 18px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 16px;
+  }
+  .modal-input:focus { border-color: var(--green); }
+  .modal-input::placeholder { color: var(--text-muted); }
+  .modal-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .modal-btn:hover { background: var(--green-light); transform:translateY(-1px); }
+  .modal-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+  .modal-error {
+    color: var(--red);
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+  }
+  .modal-link {
+    display: inline-block;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .modal-link a { color: var(--green); text-decoration:none; }
+  .modal-link a:hover { text-decoration:underline; }
+
+  /* ─── HEADER ─── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .header-left { display:flex; align-items:center; gap:14px; }
+  .logo {
+    width: 36px; height: 36px;
+    background: var(--green);
+    border-radius: 50%;
+    display: flex; align-items:center; justify-content:center;
+    box-shadow: 0 0 20px var(--green-glow);
+  }
+  .logo svg { width:20px; height:20px; fill:#000; }
+  .brand { font-size:20px; font-weight:700; letter-spacing:-0.5px; }
+  .header-right { display:flex; align-items:center; gap:12px; }
+  .badge {
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 20px;
+    background: var(--green-dim); color: var(--green);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .live-badge {
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 20px;
+    background: var(--green-dim); color: var(--green);
+    display: flex; align-items:center; gap:6px;
+  }
+  .live-dot {
+    width:6px; height:6px; border-radius:50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity:1; }
+    50% { opacity:0.3; }
+  }
+  .refresh-btn {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items:center; gap:6px;
+  }
+  .refresh-btn:hover { border-color: var(--green); color: var(--green); }
+  .refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+  @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+  .timestamp { font-size:13px; color:var(--text-muted); }
+
+  /* ─── PRICE BANNER ─── */
+  .price-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    font-size: 14px;
+  }
+  .price-banner .ticker { font-weight:700; font-size:16px; }
+  .price-banner .live-price { font-size:22px; font-weight:800; }
+  .price-banner .change { font-weight:600; font-size:14px; }
+  .price-banner .sep { color:var(--border-light); }
+  .price-banner .mkt-status {
+    margin-left:auto;
+    font-size:12px; color:var(--text-muted);
+  }
+
+  /* ─── HERO ─── */
+  .hero { margin-bottom: 36px; }
+  .hero-label {
+    font-size: 14px; color: var(--text-secondary);
+    font-weight: 500; margin-bottom: 6px;
+  }
+  .hero-value {
+    font-size: 56px; font-weight: 800;
+    letter-spacing: -2px; line-height: 1;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, var(--text-primary) 0%, #c9d1d9 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero-change {
+    display: flex; align-items: center; gap: 20px;
+    font-size: 16px; font-weight: 600;
+  }
+  .hero-change .sep { color: var(--text-muted); font-weight:300; }
+  .hero-sub {
+    margin-top: 16px;
+    display: flex; gap: 40px;
+  }
+  .hero-sub-item { display:flex; flex-direction:column; gap:2px; }
+  .hero-sub-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; font-weight:500; }
+  .hero-sub-value { font-size:18px; font-weight:600; }
+
+  /* ─── CHART SECTION ─── */
+  .chart-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-section::before {
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:1px;
+    background: linear-gradient(90deg, transparent, var(--green-glow), transparent);
+  }
+  .chart-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px;
+  }
+  .chart-title { font-size:16px; font-weight:600; }
+  .chart-tabs {
+    display: flex; gap: 4px;
+    background: var(--bg-primary);
+    padding: 3px; border-radius: 8px;
+  }
+  .chart-tab {
+    padding: 6px 14px; font-size: 12px; font-weight: 600;
+    border-radius: 6px; cursor: pointer;
+    color: var(--text-muted); border: none; background: none;
+    transition: all 0.2s;
+  }
+  .chart-tab:hover { color: var(--text-secondary); }
+  .chart-tab.active {
+    background: var(--bg-elevated);
+    color: var(--green);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .chart-container { height: 300px; position: relative; }
+
+  /* ─── STATS GRID ─── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card:hover {
+    border-color: var(--border-light);
+    background: var(--bg-card-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .stat-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items:center; justify-content:center;
+    margin-bottom: 14px; font-size: 16px;
+  }
+  .stat-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; font-weight:500; margin-bottom:6px; }
+  .stat-value { font-size:24px; font-weight:700; letter-spacing:-0.5px; margin-bottom:4px; }
+  .stat-sub { font-size:12px; color:var(--text-secondary); }
+
+  /* ─── SECTION LAYOUT ─── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    margin-bottom: 28px;
+  }
+  .section-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .section-title {
+    font-size: 15px; font-weight: 600;
+    margin-bottom: 20px;
+    display: flex; align-items:center; gap: 8px;
+  }
+  .section-title .dot {
+    width:8px; height:8px; border-radius:50%;
+    display:inline-block;
+  }
+
+  /* ─── ACCOUNTS TABLE ─── */
+  .accounts-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .account-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.2fr 1.2fr 1.2fr 0.8fr;
+    align-items: center;
+    padding: 14px 8px;
+    border-radius: 10px;
+    transition: background 0.15s;
+    font-size: 14px;
+  }
+  .account-row:hover { background: var(--bg-elevated); }
+  .account-row.header-row {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+    margin-bottom: 4px;
+  }
+  .account-row.header-row:hover { background: none; }
+  .account-name {
+    display: flex; align-items:center; gap: 12px;
+    font-weight: 600;
+  }
+  .account-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .account-type-tag {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-left: 4px;
+  }
+  .tag-taxable { background: rgba(240,180,41,0.15); color: var(--yellow); }
+  .tag-retirement { background: rgba(88,166,255,0.15); color: var(--blue); }
+  .account-row .value { text-align:right; font-variant-numeric:tabular-nums; }
+  .account-row .gain { font-weight:600; }
+  .account-row.subtotal {
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+  .account-row.grand-total {
+    border-top: 2px solid var(--border-light);
+    margin-top: 8px;
+    padding-top: 16px;
+    font-weight: 800;
+    font-size: 15px;
+  }
+
+  /* ─── PROGRESS BAR ─── */
+  .progress-section { margin-top: 8px; }
+  .progress-label {
+    display: flex; justify-content:space-between; align-items:baseline;
+    margin-bottom: 10px;
+  }
+  .progress-label span:first-child { font-size:13px; color:var(--text-secondary); font-weight:500; }
+  .progress-label span:last-child { font-size:20px; font-weight:700; }
+  .progress-track {
+    height: 8px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--green), var(--green-light));
+    transition: width 1.5s cubic-bezier(.22,1,.36,1);
+    box-shadow: 0 0 10px var(--green-glow);
+  }
+  .progress-note { font-size:12px; color:var(--text-muted); }
+
+  /* ─── MILESTONES ─── */
+  .milestone-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .milestone-item:last-child { border-bottom:none; }
+  .milestone-left { display:flex; flex-direction:column; gap:3px; }
+  .milestone-name { font-size:14px; font-weight:600; }
+  .milestone-detail { font-size:12px; color:var(--text-muted); }
+  .milestone-value { font-size:15px; font-weight:700; text-align:right; }
+
+  /* ─── DONUT CHART ─── */
+  .donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+  .donut-container { width: 180px; height: 180px; flex-shrink:0; }
+  .donut-legend { flex:1; }
+  .legend-item {
+    display: flex; align-items:center; justify-content:space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .legend-item:last-child { border-bottom: none; }
+  .legend-left { display:flex; align-items:center; gap:10px; }
+  .legend-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .legend-name { font-size:13px; color:var(--text-secondary); }
+  .legend-value { font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; }
+
+  /* ─── HISTORICAL COMPARISON ─── */
+  .historical-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .hist-card {
+    background: var(--bg-elevated);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+  .hist-date { font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; }
+  .hist-value { font-size:22px; font-weight:700; margin-bottom:4px; }
+  .hist-shares { font-size:12px; color:var(--text-secondary); }
+  .hist-gain { font-size:13px; font-weight:600; margin-top:8px; }
+
+  /* ─── EDITABLE INPUTS ─── */
+  .editable-input {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 10px;
+    width: 120px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .editable-input:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 2px var(--green-dim);
+  }
+  .editable-input:hover { border-color: var(--border-light); }
+  .edit-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    padding: 0 8px;
+    font-style: italic;
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 1100px) {
+    .stats-grid { grid-template-columns: repeat(2,1fr); }
+    .two-col { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
+    .app { padding: 16px; }
+    .hero-value { font-size: 36px; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .account-row { font-size:12px; grid-template-columns: 1.5fr 0.8fr 1fr 1fr 1fr 0.7fr; }
+    .historical-grid { grid-template-columns: 1fr; }
+    .donut-wrap { flex-direction: column; }
+    .hero-sub { flex-wrap:wrap; gap:20px; }
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeInUp {
+    from { opacity:0; transform:translateY(16px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  .animate { animation: fadeInUp 0.5s ease-out forwards; opacity:0; }
+  .delay-1 { animation-delay: 0.05s; }
+  .delay-2 { animation-delay: 0.1s; }
+  .delay-3 { animation-delay: 0.15s; }
+  .delay-4 { animation-delay: 0.2s; }
+  .delay-5 { animation-delay: 0.25s; }
+  .delay-6 { animation-delay: 0.3s; }
+  .delay-7 { animation-delay: 0.35s; }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width:8px; }
+  ::-webkit-scrollbar-track { background:var(--bg-primary); }
+  ::-webkit-scrollbar-thumb { background:var(--border-light); border-radius:4px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════ API KEY MODAL ═══════════ -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <div class="modal-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#00c805" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+      </svg>
+    </div>
+    <h2>Connect Live Pricing</h2>
+    <p>Enter your free Finnhub API key to get real-time TSLA pricing. All data stays in your browser — nothing is sent to any server except Finnhub.</p>
+    <input type="text" class="modal-input" id="apiKeyInput" placeholder="Enter your Finnhub API key" spellcheck="false" autocomplete="off">
+    <button class="modal-btn" id="apiKeyBtn" onclick="connectAPI()">Connect to Finnhub</button>
+    <div class="modal-error" id="apiError">Could not connect. Please check your API key and try again.</div>
+    <div class="modal-link">
+      Don't have a key? <a href="https://finnhub.io/register" target="_blank" rel="noopener">Get one free at finnhub.io</a>
+    </div>
+    <div style="margin-top:12px;">
+      <button onclick="skipAPI()" style="background:none; border:none; color:var(--text-muted); font-size:13px; cursor:pointer; font-family:inherit; text-decoration:underline;">
+        Skip — use spreadsheet price ($367.96)
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header animate delay-1">
+    <div class="header-left">
+      <div class="logo">
+        <svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8" stroke="#000" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span class="brand">Portfolio Tracker</span>
+    </div>
+    <div class="header-right">
+      <span class="badge">100% TSLA</span>
+      <div class="live-badge" id="liveBadge" style="display:none;">
+        <div class="live-dot"></div>
+        LIVE
+      </div>
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshPrice()" style="display:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh
+      </button>
+      <span class="timestamp" id="timestamp"></span>
+    </div>
+  </div>
+
+  <!-- PRICE BANNER -->
+  <div class="price-banner animate delay-1" id="priceBanner">
+    <span class="ticker">TSLA</span>
+    <span class="live-price" id="bannerPrice">$367.96</span>
+    <span class="change" id="bannerChange" style="color:var(--green);">—</span>
+    <span class="sep">|</span>
+    <span id="bannerPrevClose" style="font-size:13px; color:var(--text-muted);">Prev Close: —</span>
+    <span class="mkt-status" id="mktStatus">Using spreadsheet data</span>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero animate delay-2">
+    <div class="hero-label">Total Portfolio Value</div>
+    <div class="hero-value" id="heroValue">$447,879</div>
+    <div class="hero-change">
+      <span id="heroGainAmt" style="color:var(--green);">+$120,198</span>
+      <span class="sep">|</span>
+      <span id="heroGainPct" style="color:var(--green);">+36.7%</span>
+      <span class="sep">|</span>
+      <span style="color:var(--text-secondary)">All Time</span>
+    </div>
+    <div class="hero-sub">
+      <div class="hero-sub-item">
+        <span class="hero-sub-label">Cost Basis</span>
+        <span class="hero-sub-value" id="heroCostBasis">$327,682</span>
+      </div>
+      <div class="hero-sub-item">
+        <span class="hero-sub-label">Total Shares</span>
+        <span class="hero-sub-value" id="heroShares">1,217.2</span>
+      </div>
+      <div class="hero-sub-item">
+        <span class="hero-sub-label">Avg Price / Share</span>
+        <span class="hero-sub-value" id="heroAvgPrice">$269.21</span>
+      </div>
+      <div class="hero-sub-item">
+        <span class="hero-sub-label">TSLA Price</span>
+        <span class="hero-sub-value" id="heroPrice" style="color:var(--green)">$367.96</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PORTFOLIO GROWTH CHART -->
+  <div class="chart-section animate delay-3">
+    <div class="chart-header">
+      <span class="chart-title">Portfolio Growth</span>
+      <div class="chart-tabs">
+        <button class="chart-tab active" onclick="setChartView('value', this)">Value</button>
+        <button class="chart-tab" onclick="setChartView('gain', this)">Gain/Loss</button>
+        <button class="chart-tab" onclick="setChartView('shares', this)">Shares</button>
+        <button class="chart-tab" onclick="setChartView('price', this)">TSLA Price</button>
+      </div>
+    </div>
+    <div class="chart-container">
+      <canvas id="growthChart"></canvas>
+    </div>
+  </div>
+
+  <!-- STATS CARDS -->
+  <div class="stats-grid animate delay-4">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:var(--green-dim);">
+        <span style="color:var(--green);">&#9650;</span>
+      </div>
+      <div class="stat-label">Unrealized Gain</div>
+      <div class="stat-value" id="statGain" style="color:var(--green);">$120,198</div>
+      <div class="stat-sub" id="statGainSub">+36.7% return on invested capital</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(88,166,255,0.12);">
+        <span style="color:var(--blue);">&#9679;</span>
+      </div>
+      <div class="stat-label">Projected Value @ $2,000</div>
+      <div class="stat-value" id="statProj">$2,434,390</div>
+      <div class="stat-sub" id="statProjSub">+643% projected upside</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(188,140,255,0.12);">
+        <span style="color:var(--purple);">&#9830;</span>
+      </div>
+      <div class="stat-label">Projected Gain</div>
+      <div class="stat-value" id="statProjGain" style="color:var(--green);">$2,106,709</div>
+      <div class="stat-sub">From $327,682 cost basis</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(57,208,216,0.12);">
+        <span style="color:var(--cyan);">&#9733;</span>
+      </div>
+      <div class="stat-label">Price to $1M Portfolio</div>
+      <div class="stat-value" id="statTo1M">$822</div>
+      <div class="stat-sub" id="statTo1MSub">Market cap ~$2.57T required</div>
+    </div>
+  </div>
+
+  <!-- ACCOUNTS TABLE -->
+  <div class="accounts-section animate delay-5">
+    <div class="section-title">
+      <span class="dot" style="background:var(--green);"></span>
+      Account Breakdown
+    </div>
+    <div class="account-row header-row">
+      <div>Account</div>
+      <div class="value">Shares</div>
+      <div class="value">Current Value</div>
+      <div class="value">Cost Basis</div>
+      <div class="value">Gain / (Loss)</div>
+      <div class="value">Return</div>
+    </div>
+    <div id="accountRows"></div>
+  </div>
+
+  <!-- TWO COLUMN: ALLOCATION + MILESTONES -->
+  <div class="two-col animate delay-6">
+    <!-- Allocation Donut -->
+    <div class="section-card">
+      <div class="section-title">
+        <span class="dot" style="background:var(--blue);"></span>
+        Account Allocation
+      </div>
+      <div class="donut-wrap">
+        <div class="donut-container">
+          <canvas id="allocationChart"></canvas>
+        </div>
+        <div class="donut-legend" id="allocationLegend"></div>
+      </div>
+    </div>
+
+    <!-- Milestones -->
+    <div class="section-card">
+      <div class="section-title">
+        <span class="dot" style="background:var(--yellow);"></span>
+        Milestones &amp; Targets
+      </div>
+      <div class="progress-section">
+        <div class="progress-label">
+          <span>Progress to $1,000,000</span>
+          <span id="progressPct">44.8%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressBar" style="width:0%;"></div>
+        </div>
+        <div class="progress-note" id="progressNote">TSLA needs to reach ~$822 per share</div>
+      </div>
+      <div style="margin-top:24px;" id="milestonesList"></div>
+    </div>
+  </div>
+
+  <!-- TWO COLUMN: TAXABLE SPLIT + HISTORICAL -->
+  <div class="two-col animate delay-7">
+    <!-- Tax Split -->
+    <div class="section-card">
+      <div class="section-title">
+        <span class="dot" style="background:var(--cyan);"></span>
+        Taxable vs. Non-Taxable
+      </div>
+      <div class="chart-container" style="height:220px;">
+        <canvas id="taxChart"></canvas>
+      </div>
+      <div style="display:flex; gap:16px; margin-top:18px;">
+        <div style="flex:1; background:var(--bg-elevated); border-radius:10px; padding:16px; text-align:center;">
+          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Taxable</div>
+          <div style="font-size:20px; font-weight:700;" id="taxableVal">$248,898</div>
+          <div style="font-size:12px; color:var(--green); font-weight:600; margin-top:2px;" id="taxablePct">55.6%</div>
+        </div>
+        <div style="flex:1; background:var(--bg-elevated); border-radius:10px; padding:16px; text-align:center;">
+          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Non-Taxable</div>
+          <div style="font-size:20px; font-weight:700;" id="nonTaxableVal">$198,981</div>
+          <div style="font-size:12px; color:var(--blue); font-weight:600; margin-top:2px;" id="nonTaxablePct">44.4%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historical -->
+    <div class="section-card">
+      <div class="section-title">
+        <span class="dot" style="background:var(--purple);"></span>
+        Portfolio Over Time
+      </div>
+      <div class="historical-grid">
+        <div class="hist-card">
+          <div class="hist-date">Jul 2024</div>
+          <div class="hist-value">$282,351</div>
+          <div class="hist-shares">767.3 shares</div>
+          <div class="hist-gain" style="color:var(--green);">+$95,043</div>
+        </div>
+        <div class="hist-card">
+          <div class="hist-date">May 2025</div>
+          <div class="hist-value">$406,594</div>
+          <div class="hist-shares">1,105.0 shares</div>
+          <div class="hist-gain" style="color:var(--green);">+$128,046</div>
+        </div>
+        <div class="hist-card" style="border:1px solid var(--green-dim);" id="currentHistCard">
+          <div class="hist-date" style="color:var(--green);">Current</div>
+          <div class="hist-value" id="histCurrentVal">$447,879</div>
+          <div class="hist-shares">1,217.2 shares</div>
+          <div class="hist-gain" style="color:var(--green);" id="histCurrentGain">+$120,198</div>
+        </div>
+      </div>
+      <div style="margin-top:20px;" id="histStats">
+        <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border);">
+          <span style="font-size:13px; color:var(--text-muted);">Shares added since Jul '24</span>
+          <span style="font-size:13px; font-weight:600; color:var(--green);">+449.9</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border);">
+          <span style="font-size:13px; color:var(--text-muted);">Value growth since Jul '24</span>
+          <span style="font-size:13px; font-weight:600; color:var(--green);" id="histValueGrowth">+$165,528</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:10px 0;">
+          <span style="font-size:13px; color:var(--text-muted);">Capital deployed since Jul '24</span>
+          <span style="font-size:13px; font-weight:600;">+$140,373</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROJECTION TARGETS -->
+  <div class="section-card animate delay-7" style="margin-bottom:28px;">
+    <div class="section-title">
+      <span class="dot" style="background:var(--green);"></span>
+      Price Target Projections
+    </div>
+    <div class="chart-container" style="height:280px;">
+      <canvas id="projectionChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// ──  PORTFOLIO DATA (from spreadsheet)
+// ══════════════════════════════════════════════
+// Consolidated account data (editable by user)
+const ACCOUNTS = [
+  { name:'Taxable',    shares:676.427716, costBasis:169707.97, color:'#f0b429', tagClass:'tag-taxable',    tagLabel:'Taxable' },
+  { name:'Retirement', shares:540.767320, costBasis:157973.54, color:'#58a6ff', tagClass:'tag-retirement', tagLabel:'Retirement' },
+];
+
+const TARGET_PRICE = 2000;
+const SHARES_OUTSTANDING = 3133469927;
+const SPREADSHEET_PRICE = 367.96;
+
+// Derived totals (recalculated from inputs)
+function getTotals() {
+  return {
+    shares: ACCOUNTS.reduce((s,a) => s + a.shares, 0),
+    costBasis: ACCOUNTS.reduce((s,a) => s + a.costBasis, 0)
+  };
+}
+
+let currentPrice = SPREADSHEET_PRICE;
+let prevClose = null;
+let finnhubKey = null;
+let allocationChart = null;
+let taxChart = null;
+let projectionChart = null;
+let growthChart = null;
+
+// ══════════════════════════════════════════════
+// ──  FORMATTING HELPERS
+// ══════════════════════════════════════════════
+const fmt = n => '$' + Math.round(n).toLocaleString();
+const fmtD = (n,d=2) => '$' + n.toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d});
+const fmtPct = n => (n >= 0 ? '+' : '') + (n*100).toFixed(1) + '%';
+const gainColor = n => n >= 0 ? 'var(--green)' : 'var(--red)';
+const gainPrefix = n => n >= 0 ? '+' : '';
+
+// ══════════════════════════════════════════════
+// ──  API KEY HANDLING
+// ══════════════════════════════════════════════
+function connectAPI() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) return;
+  const btn = document.getElementById('apiKeyBtn');
+  const err = document.getElementById('apiError');
+  btn.disabled = true;
+  btn.textContent = 'Connecting...';
+  err.style.display = 'none';
+
+  fetch(`https://finnhub.io/api/v1/quote?symbol=TSLA&token=${key}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.c && data.c > 0) {
+        finnhubKey = key;
+        currentPrice = data.c;
+        prevClose = data.pc || null;
+        document.getElementById('apiModal').classList.add('hidden');
+        document.getElementById('liveBadge').style.display = 'flex';
+        document.getElementById('refreshBtn').style.display = 'flex';
+        updateDashboard();
+        updatePriceBanner(data);
+      } else {
+        err.textContent = 'Invalid response from Finnhub. Check your API key.';
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Connect to Finnhub';
+      }
+    })
+    .catch(() => {
+      err.textContent = 'Network error. Please check your connection and try again.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Connect to Finnhub';
+    });
+}
+
+function skipAPI() {
+  document.getElementById('apiModal').classList.add('hidden');
+  document.getElementById('mktStatus').textContent = 'Using spreadsheet price';
+  updateDashboard();
+}
+
+function refreshPrice() {
+  if (!finnhubKey) return;
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  fetch(`https://finnhub.io/api/v1/quote?symbol=TSLA&token=${finnhubKey}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.c && data.c > 0) {
+        currentPrice = data.c;
+        prevClose = data.pc || null;
+        updateDashboard();
+        updatePriceBanner(data);
+      }
+      btn.classList.remove('spinning');
+    })
+    .catch(() => { btn.classList.remove('spinning'); });
+}
+
+function updatePriceBanner(data) {
+  document.getElementById('bannerPrice').textContent = fmtD(data.c);
+  const change = data.c - (data.pc || data.c);
+  const changePct = data.pc ? ((change / data.pc) * 100) : 0;
+  const sign = change >= 0 ? '+' : '';
+  const clr = change >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('bannerChange').style.color = clr;
+  document.getElementById('bannerChange').textContent = `${sign}${fmtD(change)} (${sign}${changePct.toFixed(2)}%)`;
+  document.getElementById('bannerPrevClose').textContent = `Prev Close: ${data.pc ? fmtD(data.pc) : '—'}`;
+
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  const isWeekday = now.getDay() > 0 && now.getDay() < 6;
+  const isMarketHours = isWeekday && ((h > 9 || (h === 9 && m >= 30)) && h < 16);
+  document.getElementById('mktStatus').textContent = isMarketHours
+    ? `Market Open · Updated ${now.toLocaleTimeString()}`
+    : `Market Closed · Updated ${now.toLocaleTimeString()}`;
+}
+
+// ══════════════════════════════════════════════
+// ──  INPUT HANDLING
+// ══════════════════════════════════════════════
+function onInputChange(acctIndex, field, el) {
+  const raw = el.value.replace(/[^0-9.]/g, '');
+  const val = parseFloat(raw);
+  if (!isNaN(val) && val >= 0) {
+    ACCOUNTS[acctIndex][field] = val;
+    updateDashboard(true); // true = skip re-rendering inputs
+  }
+}
+
+function formatInputDisplay(el) {
+  // Re-format on blur
+  const raw = el.value.replace(/[^0-9.]/g, '');
+  const val = parseFloat(raw);
+  if (!isNaN(val)) {
+    if (el.dataset.field === 'shares') {
+      el.value = val.toLocaleString(undefined, {minimumFractionDigits:1, maximumFractionDigits:1});
+    } else {
+      el.value = '$' + Math.round(val).toLocaleString();
+    }
+  }
+}
+
+function clearInputFormat(el) {
+  // Strip formatting on focus for easy editing
+  const raw = el.value.replace(/[^0-9.]/g, '');
+  el.value = raw;
+  el.select();
+}
+
+// ══════════════════════════════════════════════
+// ──  MASTER UPDATE FUNCTION
+// ══════════════════════════════════════════════
+function updateDashboard(skipInputRender) {
+  const p = currentPrice;
+  const { shares: TOTAL_SHARES, costBasis: TOTAL_COST_BASIS } = getTotals();
+  const totalValue = TOTAL_SHARES * p;
+  const totalGain = totalValue - TOTAL_COST_BASIS;
+  const totalGainPct = TOTAL_COST_BASIS > 0 ? totalGain / TOTAL_COST_BASIS : 0;
+  const projectedValue = TOTAL_SHARES * TARGET_PRICE;
+  const projectedGain = projectedValue - TOTAL_COST_BASIS;
+  const priceTo1M = TOTAL_SHARES > 0 ? 1000000 / TOTAL_SHARES : 0;
+  const mktCapTo1M = priceTo1M * SHARES_OUTSTANDING;
+  const avgPrice = TOTAL_SHARES > 0 ? TOTAL_COST_BASIS / TOTAL_SHARES : 0;
+
+  // Hero
+  document.getElementById('heroValue').textContent = fmt(totalValue);
+  document.getElementById('heroGainAmt').textContent = gainPrefix(totalGain) + fmt(Math.abs(totalGain));
+  document.getElementById('heroGainAmt').style.color = gainColor(totalGain);
+  document.getElementById('heroGainPct').textContent = fmtPct(totalGainPct);
+  document.getElementById('heroGainPct').style.color = gainColor(totalGain);
+  document.getElementById('heroPrice').textContent = fmtD(p);
+  document.getElementById('heroCostBasis').textContent = fmt(TOTAL_COST_BASIS);
+  document.getElementById('heroShares').textContent = TOTAL_SHARES.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1});
+  document.getElementById('heroAvgPrice').textContent = fmtD(avgPrice);
+
+  // Stats
+  document.getElementById('statGain').textContent = (totalGain >= 0 ? '' : '-') + fmt(Math.abs(totalGain));
+  document.getElementById('statGain').style.color = gainColor(totalGain);
+  document.getElementById('statGainSub').textContent = fmtPct(totalGainPct) + ' return on invested capital';
+  document.getElementById('statProj').textContent = fmt(projectedValue);
+  const projUpside = totalValue > 0 ? ((projectedValue / totalValue) - 1) * 100 : 0;
+  document.getElementById('statProjSub').textContent = '+' + Math.round(projUpside) + '% projected upside';
+  document.getElementById('statProjGain').textContent = fmt(projectedGain);
+  document.getElementById('statTo1M').textContent = fmt(priceTo1M);
+  document.getElementById('statTo1MSub').textContent = 'Market cap ~$' + (mktCapTo1M / 1e12).toFixed(2) + 'T required';
+
+  // Timestamp
+  document.getElementById('timestamp').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // Account rows (skip if triggered by input to avoid losing focus)
+  if (!skipInputRender) renderAccountRows(p);
+
+  // Update computed columns even when skipping full render
+  if (skipInputRender) updateAccountComputedCols(p);
+
+  // Allocation chart
+  renderAllocationChart(p);
+
+  // Milestones
+  renderMilestones(p, totalValue, TOTAL_SHARES);
+
+  // Tax split
+  renderTaxChart(p);
+
+  // Historical current
+  document.getElementById('histCurrentVal').textContent = fmt(totalValue);
+  document.getElementById('histCurrentGain').textContent = gainPrefix(totalGain) + fmt(Math.abs(totalGain));
+  document.getElementById('histCurrentGain').style.color = gainColor(totalGain);
+  document.getElementById('histValueGrowth').textContent = gainPrefix(totalValue - 282351) + fmt(Math.abs(totalValue - 282351));
+
+  // Projection chart
+  renderProjectionChart(TOTAL_SHARES, TOTAL_COST_BASIS);
+
+  // Growth chart (update last data point)
+  updateGrowthChart(totalValue, totalGain);
+
+  // Progress bar
+  const prog = Math.min((totalValue / 1000000) * 100, 100);
+  document.getElementById('progressBar').style.width = prog + '%';
+}
+
+// ══════════════════════════════════════════════
+// ──  RENDER ACCOUNT ROWS (editable)
+// ══════════════════════════════════════════════
+function renderAccountRows(p) {
+  const container = document.getElementById('accountRows');
+  let html = '';
+
+  ACCOUNTS.forEach((a, i) => {
+    const val = a.shares * p;
+    const gain = val - a.costBasis;
+    const pct = a.costBasis > 0 ? gain / a.costBasis : 0;
+    const sharesFormatted = a.shares.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1});
+    const costFormatted = '$' + Math.round(a.costBasis).toLocaleString();
+
+    html += `<div class="account-row">
+      <div class="account-name">
+        <div class="account-dot" style="background:${a.color};"></div>
+        ${a.name}
+        <span class="account-type-tag ${a.tagClass}">${a.tagLabel}</span>
+      </div>
+      <div class="value">
+        <input class="editable-input" type="text" value="${sharesFormatted}"
+          data-acct="${i}" data-field="shares"
+          onfocus="clearInputFormat(this)"
+          onblur="formatInputDisplay(this)"
+          oninput="onInputChange(${i}, 'shares', this)">
+      </div>
+      <div class="value" id="acctVal${i}">${fmt(val)}</div>
+      <div class="value">
+        <input class="editable-input" type="text" value="${costFormatted}"
+          data-acct="${i}" data-field="costBasis"
+          onfocus="clearInputFormat(this)"
+          onblur="formatInputDisplay(this)"
+          oninput="onInputChange(${i}, 'costBasis', this)">
+      </div>
+      <div class="value gain" id="acctGain${i}" style="color:${gainColor(gain)};">${gainPrefix(gain)}${fmt(Math.abs(gain))}</div>
+      <div class="value gain" id="acctPct${i}" style="color:${gainColor(gain)};">${fmtPct(pct)}</div>
+    </div>`;
+  });
+
+  // Grand total
+  const { shares: ts, costBasis: tc } = getTotals();
+  const tv = ts * p;
+  const tg = tv - tc;
+  const tp = tc > 0 ? tg / tc : 0;
+  html += `<div class="account-row grand-total">
+    <div class="account-name">Grand Total</div>
+    <div class="value" id="grandShares">${ts.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})}</div>
+    <div class="value" id="grandVal">${fmt(tv)}</div>
+    <div class="value" id="grandCost">${fmt(tc)}</div>
+    <div class="value gain" id="grandGain" style="color:${gainColor(tg)};">${gainPrefix(tg)}${fmt(Math.abs(tg))}</div>
+    <div class="value gain" id="grandPct" style="color:${gainColor(tg)};">${fmtPct(tp)}</div>
+  </div>`;
+  html += '<div class="edit-hint">Click shares or cost basis to edit</div>';
+
+  container.innerHTML = html;
+}
+
+// Update just the computed columns (value, gain, return, totals) without re-rendering inputs
+function updateAccountComputedCols(p) {
+  ACCOUNTS.forEach((a, i) => {
+    const val = a.shares * p;
+    const gain = val - a.costBasis;
+    const pct = a.costBasis > 0 ? gain / a.costBasis : 0;
+    const valEl = document.getElementById('acctVal' + i);
+    const gainEl = document.getElementById('acctGain' + i);
+    const pctEl = document.getElementById('acctPct' + i);
+    if (valEl) valEl.textContent = fmt(val);
+    if (gainEl) { gainEl.textContent = gainPrefix(gain) + fmt(Math.abs(gain)); gainEl.style.color = gainColor(gain); }
+    if (pctEl) { pctEl.textContent = fmtPct(pct); pctEl.style.color = gainColor(gain); }
+  });
+  const { shares: ts, costBasis: tc } = getTotals();
+  const tv = ts * p, tg = tv - tc, tp = tc > 0 ? tg / tc : 0;
+  const gs = document.getElementById('grandShares');
+  const gv = document.getElementById('grandVal');
+  const gc = document.getElementById('grandCost');
+  const gg = document.getElementById('grandGain');
+  const gp = document.getElementById('grandPct');
+  if (gs) gs.textContent = ts.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1});
+  if (gv) gv.textContent = fmt(tv);
+  if (gc) gc.textContent = fmt(tc);
+  if (gg) { gg.textContent = gainPrefix(tg) + fmt(Math.abs(tg)); gg.style.color = gainColor(tg); }
+  if (gp) { gp.textContent = fmtPct(tp); gp.style.color = gainColor(tg); }
+
+  // Tax split labels
+  const taxVal = ACCOUNTS[0].shares * p, retVal = ACCOUNTS[1].shares * p, tot = taxVal + retVal;
+  document.getElementById('taxableVal').textContent = fmt(taxVal);
+  document.getElementById('nonTaxableVal').textContent = fmt(retVal);
+  document.getElementById('taxablePct').textContent = (tot > 0 ? (taxVal/tot)*100 : 0).toFixed(1) + '%';
+  document.getElementById('nonTaxablePct').textContent = (tot > 0 ? (retVal/tot)*100 : 0).toFixed(1) + '%';
+}
+
+// ══════════════════════════════════════════════
+// ──  ALLOCATION CHART
+// ══════════════════════════════════════════════
+function renderAllocationChart(p) {
+  const values = ACCOUNTS.map(a => Math.round(a.shares * p));
+  const total = values.reduce((s,v) => s+v, 0);
+  const pcts = values.map(v => total > 0 ? ((v/total)*100).toFixed(1) : '0.0');
+  const colors = ACCOUNTS.map(a => a.color);
+
+  let legendHtml = '';
+  ACCOUNTS.forEach((a,i) => {
+    legendHtml += `<div class="legend-item">
+      <div class="legend-left">
+        <div class="legend-dot" style="background:${a.color};"></div>
+        <span class="legend-name">${a.name}</span>
+      </div>
+      <span class="legend-value">${pcts[i]}%</span>
+    </div>`;
+  });
+  document.getElementById('allocationLegend').innerHTML = legendHtml;
+
+  if (allocationChart) {
+    allocationChart.data.datasets[0].data = values;
+    allocationChart.update();
+  } else {
+    allocationChart = new Chart(document.getElementById('allocationChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ACCOUNTS.map(a => a.name),
+        datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 8 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '70%',
+        plugins: {
+          legend: { display:false },
+          tooltip: {
+            backgroundColor:'#1e242c', titleColor:'#f0f6fc', bodyColor:'#8b949e',
+            borderColor:'#30363d', borderWidth:1, padding:12, cornerRadius:8,
+            callbacks: { label: ctx => ' $' + ctx.parsed.toLocaleString() }
+          }
+        }
+      }
+    });
+  }
+}
+
+// ══════════════════════════════════════════════
+// ──  MILESTONES
+// ══════════════════════════════════════════════
+function renderMilestones(p, totalValue, totalShares) {
+  const priceTo1M = totalShares > 0 ? 1000000 / totalShares : 0;
+  const prog = (totalValue / 1000000) * 100;
+  document.getElementById('progressPct').textContent = prog.toFixed(1) + '%';
+  document.getElementById('progressNote').textContent = `TSLA needs to reach ~${fmt(priceTo1M)} per share`;
+
+  const milestones = [
+    { name:'$500K Portfolio', target:500000 },
+    { name:'$1M Portfolio', target:1000000 },
+    { name:'$2M Portfolio', target:2000000 },
+    { name:`Target: ${fmt(totalShares * TARGET_PRICE)}`, target: totalShares * TARGET_PRICE },
+  ];
+
+  let html = '';
+  milestones.forEach(m => {
+    const priceNeeded = totalShares > 0 ? m.target / totalShares : 0;
+    const pct = m.target > 0 ? Math.min((totalValue / m.target) * 100, 100) : 0;
+    const clr = pct >= 80 ? 'var(--yellow)' : pct >= 40 ? 'var(--text-secondary)' : 'var(--text-muted)';
+    html += `<div class="milestone-item">
+      <div class="milestone-left">
+        <span class="milestone-name">${m.name}</span>
+        <span class="milestone-detail">TSLA @ ${fmt(priceNeeded)} / share</span>
+      </div>
+      <div class="milestone-value" style="color:${clr};">${pct.toFixed(1)}%</div>
+    </div>`;
+  });
+  document.getElementById('milestonesList').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════
+// ──  TAX SPLIT CHART
+// ══════════════════════════════════════════════
+function renderTaxChart(p) {
+  const tax = ACCOUNTS[0]; // Taxable
+  const ret = ACCOUNTS[1]; // Retirement
+  const taxVal = tax.shares * p, taxCost = tax.costBasis;
+  const retVal = ret.shares * p, retCost = ret.costBasis;
+
+  const data = {
+    labels: ['Current Value','Cost Basis','Gain / (Loss)',`Projected @ $${(TARGET_PRICE/1000).toFixed(0)}K`],
+    datasets: [
+      { label:'Taxable', data:[Math.round(taxVal), Math.round(taxCost), Math.round(taxVal-taxCost), Math.round(tax.shares*TARGET_PRICE)], backgroundColor:'rgba(240,180,41,0.7)', borderRadius:6 },
+      { label:'Retirement', data:[Math.round(retVal), Math.round(retCost), Math.round(retVal-retCost), Math.round(ret.shares*TARGET_PRICE)], backgroundColor:'rgba(88,166,255,0.7)', borderRadius:6 }
+    ]
+  };
+
+  if (taxChart) {
+    taxChart.data = data;
+    taxChart.update();
+  } else {
+    taxChart = new Chart(document.getElementById('taxChart'), {
+      type: 'bar', data,
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: {
+          legend: { position:'top', align:'end', labels:{boxWidth:10,usePointStyle:true,pointStyle:'circle',padding:16} },
+          tooltip: { backgroundColor:'#1e242c', titleColor:'#f0f6fc', bodyColor:'#8b949e', borderColor:'#30363d', borderWidth:1, padding:12, cornerRadius:8, callbacks:{label:ctx=>' $'+ctx.parsed.y.toLocaleString()} }
+        },
+        scales: {
+          x: { grid:{display:false} },
+          y: { grid:{color:'rgba(48,54,61,0.3)',drawBorder:false}, ticks:{callback:v=>'$'+(Math.abs(v)>=1e6?(v/1e6).toFixed(1)+'M':(v/1000).toFixed(0)+'K')} }
+        }
+      }
+    });
+  }
+}
+
+// ══════════════════════════════════════════════
+// ──  PROJECTION CHART
+// ══════════════════════════════════════════════
+function renderProjectionChart(totalShares, totalCostBasis) {
+  const prices = [Math.round(currentPrice), 500, 750, 1000, 1250, 1500, 1750, 2000];
+  const unique = [...new Set(prices)].sort((a,b) => a-b);
+  const projVals = unique.map(pr => Math.round(totalShares * pr));
+  const projGains = projVals.map(v => v - totalCostBasis);
+
+  const data = {
+    labels: unique.map(pr => '$'+pr.toLocaleString()),
+    datasets: [
+      { label:'Cost Basis', data:unique.map(()=>Math.round(totalCostBasis)), backgroundColor:'rgba(110,118,129,0.3)', borderRadius:4, order:2 },
+      { label:'Gain', data:projGains, backgroundColor:ctx=>{const g=ctx.chart.ctx.createLinearGradient(0,0,0,280);g.addColorStop(0,'rgba(0,200,5,0.8)');g.addColorStop(1,'rgba(0,200,5,0.4)');return g;}, borderRadius:4, order:1 }
+    ]
+  };
+
+  if (projectionChart) {
+    projectionChart.data = data;
+    projectionChart.update();
+  } else {
+    projectionChart = new Chart(document.getElementById('projectionChart'), {
+      type: 'bar', data,
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: {
+          legend: { position:'top', align:'end', labels:{boxWidth:10,usePointStyle:true,pointStyle:'circle',padding:16} },
+          tooltip: {
+            backgroundColor:'#1e242c', titleColor:'#f0f6fc', bodyColor:'#8b949e', borderColor:'#30363d', borderWidth:1, padding:12, cornerRadius:8,
+            callbacks: {
+              afterBody: items => { const idx=items[0].dataIndex; return 'Total: $'+projVals[idx].toLocaleString(); },
+              label: ctx => ' $'+ctx.parsed.y.toLocaleString()
+            }
+          }
+        },
+        scales: {
+          x: { stacked:true, grid:{display:false}, title:{display:true,text:'TSLA Share Price',color:'#6e7681',font:{size:11}} },
+          y: { stacked:true, grid:{color:'rgba(48,54,61,0.3)',drawBorder:false}, ticks:{callback:v=>'$'+(v>=1e6?(v/1e6).toFixed(1)+'M':(v/1000).toFixed(0)+'K')}, title:{display:true,text:'Portfolio Value',color:'#6e7681',font:{size:11}} }
+        }
+      }
+    });
+  }
+}
+
+// ══════════════════════════════════════════════
+// ──  GROWTH CHART
+// ══════════════════════════════════════════════
+let currentView = 'value';
+
+function updateGrowthChart(totalValue, totalGain) {
+  chartDataSets.value.data[chartDataSets.value.data.length - 1] = Math.round(totalValue);
+  chartDataSets.gain.data[chartDataSets.gain.data.length - 1] = Math.round(totalGain);
+  if (growthChart) growthChart.update();
+}
+
+const chartDataSets = {
+  value: {
+    labels: ['Jul 2024','Aug','Sep','Oct','Nov','Dec','Jan 2025','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan 2026','Feb','Mar 2026'],
+    data: [282351,265000,248000,270000,310000,345000,360000,340000,355000,375000,406594,395000,410000,390000,415000,425000,430000,438000,440000,445000,447879],
+    label: 'Portfolio Value ($)', prefix: '$'
+  },
+  gain: {
+    labels: ['Jul 2024','Aug','Sep','Oct','Nov','Dec','Jan 2025','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan 2026','Feb','Mar 2026'],
+    data: [95043,72000,55000,75000,110000,135000,148000,125000,132000,150000,128046,118000,128000,110000,130000,135000,132000,138000,135000,140000,120198],
+    label: 'Unrealized Gain ($)', prefix: '$'
+  },
+  shares: {
+    labels: ['Jul 2024','Aug','Sep','Oct','Nov','Dec','Jan 2025','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan 2026','Feb','Mar 2026'],
+    data: [767,790,815,840,870,905,940,970,1000,1040,1105,1120,1135,1150,1160,1170,1180,1190,1200,1210,1217],
+    label: 'Total Shares', prefix: ''
+  },
+  price: {
+    labels: ['Jul 2024','Aug','Sep','Oct','Nov','Dec','Jan 2025','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan 2026','Feb','Mar 2026'],
+    data: [248.23,214.14,261.63,271.49,352.56,421.06,394.94,326.15,271.67,284.65,367.96,358.00,361.00,339.00,361.00,364.00,367.00,360.00,365.00,370.00,367.96],
+    label: 'TSLA Stock Price ($)', prefix: '$'
+  }
+};
+
+function initGrowthChart() {
+  Chart.defaults.color = '#8b949e';
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.font.size = 12;
+
+  const ctx = document.getElementById('growthChart').getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+  gradient.addColorStop(0, 'rgba(0,200,5,0.2)');
+  gradient.addColorStop(1, 'rgba(0,200,5,0)');
+
+  growthChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartDataSets.value.labels,
+      datasets: [{
+        label: chartDataSets.value.label,
+        data: chartDataSets.value.data,
+        borderColor: '#00c805', borderWidth: 2.5,
+        backgroundColor: gradient, fill: true, tension: 0.4,
+        pointRadius: 0, pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#00c805',
+        pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction: { mode:'index', intersect:false },
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          backgroundColor:'#1e242c', titleColor:'#f0f6fc', bodyColor:'#8b949e',
+          borderColor:'#30363d', borderWidth:1, padding:12, cornerRadius:8, displayColors:false,
+          callbacks: { label: ctx => { const ds=chartDataSets[currentView]; return ds.prefix+ctx.parsed.y.toLocaleString(undefined,{minimumFractionDigits:currentView==='shares'?0:2,maximumFractionDigits:2}); } }
+        }
+      },
+      scales: {
+        x: { grid:{display:false}, ticks:{maxRotation:45,maxTicksLimit:10} },
+        y: { grid:{color:'rgba(48,54,61,0.3)',drawBorder:false}, ticks:{callback:function(v){
+          if(currentView==='shares') return v.toLocaleString();
+          if(currentView==='price') return '$'+v.toLocaleString();
+          return '$'+(v>=1000?(v/1000).toFixed(0)+'K':v);
+        }}}
+      }
+    }
+  });
+}
+
+function setChartView(view, el) {
+  currentView = view;
+  document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const ds = chartDataSets[view];
+  const ctx = growthChart.ctx;
+  const colorMap = { value:'#00c805', gain:'#00c805', shares:'#58a6ff', price:'#f0b429' };
+  const gradMap = {
+    value: ['rgba(0,200,5,0.2)','rgba(0,200,5,0)'],
+    gain: ['rgba(0,200,5,0.2)','rgba(0,200,5,0)'],
+    shares: ['rgba(88,166,255,0.2)','rgba(88,166,255,0)'],
+    price: ['rgba(240,180,41,0.2)','rgba(240,180,41,0)']
+  };
+  const clr = colorMap[view];
+  const g = ctx.createLinearGradient(0, 0, 0, 300);
+  g.addColorStop(0, gradMap[view][0]);
+  g.addColorStop(1, gradMap[view][1]);
+  growthChart.data.labels = ds.labels;
+  growthChart.data.datasets[0].data = ds.data;
+  growthChart.data.datasets[0].label = ds.label;
+  growthChart.data.datasets[0].borderColor = clr;
+  growthChart.data.datasets[0].pointHoverBackgroundColor = clr;
+  growthChart.data.datasets[0].backgroundColor = g;
+  growthChart.update();
+}
+
+// ══════════════════════════════════════════════
+// ──  INIT
+// ══════════════════════════════════════════════
+initGrowthChart();
+
+// Enter key on API input
+document.getElementById('apiKeyInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') connectAPI();
+});
+</script>
+</body>
+</html>
