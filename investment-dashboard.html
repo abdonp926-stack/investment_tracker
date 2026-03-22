@@ -573,6 +573,10 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         Refresh
       </button>
+      <button class="refresh-btn" id="resetKeyBtn" onclick="resetAPIKey()" style="display:none;" title="Clear saved API key">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        Reset Key
+      </button>
       <span class="timestamp" id="timestamp"></span>
     </div>
   </div>
@@ -860,11 +864,13 @@ function connectAPI() {
     .then(data => {
       if (data.c && data.c > 0) {
         finnhubKey = key;
+        try { localStorage.setItem('finnhub_api_key', key); } catch(e) {}
         currentPrice = data.c;
         prevClose = data.pc || null;
         document.getElementById('apiModal').classList.add('hidden');
         document.getElementById('liveBadge').style.display = 'flex';
         document.getElementById('refreshBtn').style.display = 'flex';
+        document.getElementById('resetKeyBtn').style.display = 'flex';
         updateDashboard();
         updatePriceBanner(data);
       } else {
@@ -885,6 +891,26 @@ function connectAPI() {
 function skipAPI() {
   document.getElementById('apiModal').classList.add('hidden');
   document.getElementById('mktStatus').textContent = 'Using spreadsheet price';
+  updateDashboard();
+}
+
+function resetAPIKey() {
+  try { localStorage.removeItem('finnhub_api_key'); } catch(e) {}
+  finnhubKey = null;
+  currentPrice = SPREADSHEET_PRICE;
+  prevClose = null;
+  document.getElementById('liveBadge').style.display = 'none';
+  document.getElementById('refreshBtn').style.display = 'none';
+  document.getElementById('resetKeyBtn').style.display = 'none';
+  document.getElementById('mktStatus').textContent = 'Using spreadsheet price';
+  document.getElementById('bannerPrice').textContent = fmtD(SPREADSHEET_PRICE);
+  document.getElementById('bannerChange').textContent = '—';
+  document.getElementById('bannerPrevClose').textContent = 'Prev Close: —';
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('apiKeyBtn').disabled = false;
+  document.getElementById('apiKeyBtn').textContent = 'Connect to Finnhub';
+  document.getElementById('apiError').style.display = 'none';
+  document.getElementById('apiModal').classList.remove('hidden');
   updateDashboard();
 }
 
@@ -1397,6 +1423,32 @@ initGrowthChart();
 document.getElementById('apiKeyInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') connectAPI();
 });
+
+// Auto-load saved API key
+(function autoConnect() {
+  let savedKey = null;
+  try { savedKey = localStorage.getItem('finnhub_api_key'); } catch(e) {}
+  if (savedKey) {
+    document.getElementById('apiKeyInput').value = savedKey;
+    // Auto-connect silently
+    fetch(`https://finnhub.io/api/v1/quote?symbol=TSLA&token=${savedKey}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.c && data.c > 0) {
+          finnhubKey = savedKey;
+          currentPrice = data.c;
+          prevClose = data.pc || null;
+          document.getElementById('apiModal').classList.add('hidden');
+          document.getElementById('liveBadge').style.display = 'flex';
+          document.getElementById('refreshBtn').style.display = 'flex';
+          updateDashboard();
+          updatePriceBanner(data);
+        }
+        // If key no longer works, just show the modal as usual
+      })
+      .catch(() => { /* show modal normally */ });
+  }
+})();
 </script>
 </body>
 </html>
